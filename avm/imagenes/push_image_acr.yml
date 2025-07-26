@@ -1,0 +1,41 @@
+---
+- hosts: localhost
+  gather_facts: false
+  collections:
+    - containers.podman
+  vars_files:
+    - vault.yml
+
+  vars:
+    acr_registry: "casopractico2registry.azurecr.io"
+    acr_username: "tokencasopractico2"
+    acr_password: "{{ repo_password }}"
+    local_image: "docker.io/library/nginx:latest"
+    tagged_image: "docker.io/library/nginx:casopractico2"
+    remote_image: "{{ acr_registry }}/cp2/nginx:casopractico2"
+
+  tasks:
+    - name: Descargar imagen base desde Docker Hub
+      containers.podman.podman_image:
+        name: "{{ local_image }}"
+        pull: true
+
+    - name: Etiquetar la imagen como casopractico2
+      containers.podman.podman_tag:
+        image: "{{ local_image }}"
+        target_names:
+          - "{{ tagged_image }}"
+
+    - name: Iniciar sesión en el ACR
+      containers.podman.podman_login:
+        registry: "{{ acr_registry }}"
+        username: "{{ acr_username }}"
+        password: "{{ acr_password }}"
+
+    - name: Subir imagen al ACR
+      containers.podman.podman_image:
+        name: "docker.io/library/nginx"
+        tag: "casopractico2"
+        push: true
+        push_args:
+          dest: "{{ remote_image }}"

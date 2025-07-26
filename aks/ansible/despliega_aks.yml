@@ -1,0 +1,35 @@
+- name: Despliega la aplicacion en aks
+  hosts: localhost
+  gather_facts: false
+  vars_files:
+    - vars.yml
+  collections:
+    - azure.azcollection
+    - community.kubernetes
+
+  tasks:
+
+    - name: Obtiene las credenciales para aks
+      command: >
+        az aks get-credentials
+        --resource-group {{ resource_group }}
+        --name {{ aks_name }}
+        --overwrite-existing
+      register: get_creds
+
+    - name: Espera hasta que haya conexion con el cluster
+      community.kubernetes.k8s_info:
+        kubeconfig: ~/.kube/config
+        kind: Namespace
+      retries: 10
+      delay: 15
+      register: result
+      until: result is succeeded
+
+    - name: Aplica los manifiestos
+      community.kubernetes.k8s:
+        kubeconfig: ~/.kube/config
+        state: present
+        namespace: default
+        src: "{{ item }}"
+      loop: "{{ lookup('fileglob', 'kube-info/*.yaml', wantlist=True) }}"

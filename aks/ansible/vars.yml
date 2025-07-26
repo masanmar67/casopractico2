@@ -1,0 +1,6 @@
+resource_group: "casopractico2RGaks"
+aks_name: "casopractico2akscluster"
+location: "eastus"
+dns_prefix: "casopractico2"
+admin_username: "azureuser"
+ssh_public_key: "{{ lookup('file', '~/.ssh/id_rsa.pub') }}"

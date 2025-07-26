@@ -1,0 +1,57 @@
+---
+- name: Configuración de máquina virtual de azure
+  hosts: azure_vm
+  gather_facts: yes
+  become: yes
+
+  vars:
+    acr_image_name: "casoPractico2registry.azurecr.io/cp2/nginx:casopractico2"
+
+  tasks:
+    - name: Actualizar paquetes
+      ansible.builtin.apt:
+        update_cache: yes
+
+    - name: Instalar Podman
+      ansible.builtin.apt:
+        name: podman
+        state: present
+
+    - name: Habilitar y iniciar el socket de Podman (si aplica)
+      ansible.builtin.systemd:
+        name: podman.socket
+        enabled: yes
+        state: started
+      ignore_errors: yes
+
+    - name: Permitir que los contenedores de Podman se ejecuten después del cierre de sesión para el usuario
+      ansible.builtin.command: "loginctl enable-linger {{ ansible_user }}"
+      changed_when: true
+      ignore_errors: yes
+
+    - name: Obtener la imagen de acr
+      ansible.builtin.command: "podman pull {{ acr_image_name }}"
+      register: podman_pull_output
+      changed_when: podman_pull_output.rc == 0
+
+    - name: Mostrar el resultado del pull de la imagen
+      ansible.builtin.debug:
+        var: podman_pull_output.stdout_lines
+
+    - name: Ejecutar la imagen de ACR (ejemplo)
+      ansible.builtin.command: "podman run -d -p 8080:80 --name my-nginx {{ acr_image_name }}"
+      args:
+        creates: "/var/lib/containers/storage/overlay/images/{{ acr_image_name | hash('sha256') }}" # Evita re-ejecutar si ya existe el contenedor
+      register: podman_run_output
+      changed_when: podman_run_output.rc == 0
+      ignore_errors: yes
+
+    - name: Verificar el estado de los contenedores de Podman
+      ansible.builtin.command: "podman ps"
+      register: podman_ps_output
+      changed_when: false
+
+    - name: Mostrar contenedores de Podman
+      ansible.builtin.debug:
+        var: podman_ps_output.stdout_lines
+
